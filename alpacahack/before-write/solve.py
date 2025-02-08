@@ -18,7 +18,7 @@ for n in range(0x20, 100):
     # io = pwn.remote('34.170.146.252', 44312)
     io = pwn.process('./chall')
     io.sendlineafter(b'value: ', value)
-
+    io
     # print(value)
 
     print(io.recvall())
