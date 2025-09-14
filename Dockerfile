@@ -18,4 +18,7 @@ RUN apt install -y python3-pip && python3 -m pip install --upgrade pwntools ipyt
 # netcat Need to specify "netcat-traditional 1.10-48" or "netcat-openbsd 1.226-1ubuntu2"
 RUN apt install -y netcat-openbsd
 
+RUN apt install -y git && git clone https://github.com/longld/peda.git /root/peda && echo "source ~/peda/peda.py" >> ~/.gdbinit && python3 -m pip install six --break-system-packages && cp /usr/lib/python3/dist-packages/six.py ~/peda/lib/six.py
+
+
 CMD ["bash"]
