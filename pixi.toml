@@ -4,7 +4,14 @@ name = "CTF"
 platforms = ["linux-64"]
 version = "0.1.0"
 
+[activation]
+scripts = ["setup_docker.sh"]
+
 [tasks]
+g = {cmd="""
+cd $INIT_CWD && 
+g++ -fno-stack-protector -g $1
+"""}
 
 [dependencies]
 python = "3.13.*"
